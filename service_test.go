@@ -172,12 +172,14 @@ func testConfig(env *service.Environment) *config.Config {
 
 func testEnvironment() *service.Environment {
 	return &service.Environment{
-		CPU:               int64(0),
-		Memory:            int64(0),
-		Network:           containerNetwork,
-		StartupTimeout:    serviceStartupTimeout,
-		CaptureDriverLogs: captureDriverLogs,
-		Privileged:        false,
+		CPU:                 int64(0),
+		Memory:              int64(0),
+		Network:             containerNetwork,
+		StartupTimeout:      serviceStartupTimeout,
+		CaptureDriverLogs:   captureDriverLogs,
+		VideoContainerImage: "aerokube/video-recorder",
+		VideoOutputDir:      "/some/dir",
+		Privileged:          false,
 	}
 }
 
@@ -224,6 +226,7 @@ func createDockerStarter(t *testing.T, env *service.Environment, cfg *config.Con
 		Version:               "33.0",
 		ScreenResolution:      "1024x768",
 		VNC:                   true,
+		Video:                 true,
 		HostsEntries:          "example.com:192.168.0.1,test.com:192.168.0.2",
 		ApplicationContainers: "one,two",
 		TimeZone:              "Europe/Moscow",

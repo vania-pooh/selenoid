@@ -74,6 +74,8 @@ var (
 	logConfPath              string
 	captureDriverLogs        bool
 	disablePrivileged        bool
+	videoOutputPath          string
+	videoRecorderImage       string
 	conf                     *config.Config
 	queue                    *protect.Queue
 	manager                  service.Manager
@@ -107,6 +109,8 @@ func init() {
 	flag.StringVar(&containerNetwork, "container-network", "default", "Network to be used for containers")
 	flag.BoolVar(&captureDriverLogs, "capture-driver-logs", false, "Whether to add driver process logs to Selenoid output")
 	flag.BoolVar(&disablePrivileged, "disable-privileged", false, "Whether to disable privileged container mode")
+	flag.StringVar(&videoOutputPath, "video-output-path", "output", "Directory to save recorded video to")
+	flag.StringVar(&videoRecorderImage, "video-recorder-image", "selenoid/video-recorder", "Image to use as video recorder")
 	flag.Parse()
 
 	if version {
@@ -138,13 +142,15 @@ func init() {
 		inDocker = true
 	}
 	environment := service.Environment{
-		InDocker:          inDocker,
-		CPU:               int64(cpu),
-		Memory:            int64(mem),
-		Network:           containerNetwork,
-		StartupTimeout:    serviceStartupTimeout,
-		CaptureDriverLogs: captureDriverLogs,
-		Privileged:        !disablePrivileged,
+		InDocker:            inDocker,
+		CPU:                 int64(cpu),
+		Memory:              int64(mem),
+		Network:             containerNetwork,
+		StartupTimeout:      serviceStartupTimeout,
+		CaptureDriverLogs:   captureDriverLogs,
+		VideoOutputDir:      videoOutputPath,
+		VideoContainerImage: videoRecorderImage,
+		Privileged:          !disablePrivileged,
 	}
 	if disableDocker {
 		manager = &service.DefaultManager{Environment: &environment, Config: conf}
