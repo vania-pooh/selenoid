@@ -2,10 +2,12 @@ package service
 
 import (
 	"fmt"
+	"github.com/kballard/go-shellquote"
 	"log"
 	"net"
 	"net/url"
 	"os/exec"
+	"strings"
 	"time"
 
 	"errors"
@@ -76,8 +78,32 @@ func (d *Driver) StartWithCancel() (*StartedService, error) {
 		return nil, err
 	}
 	log.Printf("[%d] [PROCESS_STARTED] [%d] [%.2fs]", requestId, cmd.Process.Pid, util.SecondsSince(s))
-	log.Printf("[%d] [PROXY_TO] [%s]", requestId, u.String())
-	return &StartedService{Url: u, Cancel: func() { d.stopProcess(cmd) }}, nil
+
+	var videoCmd *exec.Cmd
+	if d.Video {
+		videoOutputPath := filepath.Join(d.VideoOutputDir, d.VideoName)
+		videoCmdLine, err := shellquote.Split(strings.Replace(d.VideoContainerImage, "$fileName", videoOutputPath, -1))
+		if err != nil {
+			return nil, fmt.Errorf("malformed video recorder command: %v", err)
+		}
+		log.Printf("[%d] [STARTING_PROCESS] [%s]", requestId, videoCmdLine)
+		videoCmd = exec.Command(videoCmdLine[0], videoCmdLine[1:]...)
+		videoCmd.Stdout = os.Stdout
+		videoCmd.Stderr = os.Stderr
+		err = videoCmd.Start()
+		if err != nil {
+			return nil, fmt.Errorf("cannot start video recorder process: %v", err)
+		}
+	}
+
+	log.Printf("[%d] [PROXY_TO] [%s] [%.2fs]", requestId, u.String(), util.SecondsSince(s))
+	cancel := func() {
+		if videoCmd != nil {
+			d.stopProcess(videoCmd)
+		}
+		d.stopProcess(cmd)
+	}
+	return &StartedService{Url: u, Cancel: cancel}, nil
 }
 
 func (d *Driver) stopProcess(cmd *exec.Cmd) {
@@ -88,8 +114,8 @@ func (d *Driver) stopProcess(cmd *exec.Cmd) {
 		log.Printf("[%d] [FAILED_TO_TERMINATE_PROCESS] [%d] [%v]", d.RequestId, cmd.Process.Pid, err)
 		return
 	}
-	if !d.CaptureDriverLogs && d.LogOutputDir != "" {
-		cmd.Stdout.(*os.File).Close()
+	if file, ok := cmd.Stdout.(*os.File); ok && !d.CaptureDriverLogs && d.LogOutputDir != "" {
+		file.Close()
 	}
 	log.Printf("[%d] [TERMINATED_PROCESS] [%d] [%.2fs]", d.RequestId, cmd.Process.Pid, util.SecondsSince(s))
 }

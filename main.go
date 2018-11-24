@@ -158,17 +158,15 @@ func init() {
 		inDocker = true
 	}
 
-	if !disableDocker {
-		videoOutputDir, err = filepath.Abs(videoOutputDir)
-		if err != nil {
-			log.Fatalf("[-] [INIT] [Invalid video output dir %s: %v]", videoOutputDir, err)
-		}
-		err = os.MkdirAll(videoOutputDir, os.FileMode(0644))
-		if err != nil {
-			log.Fatalf("[-] [INIT] [Failed to create video output dir %s: %v]", videoOutputDir, err)
-		}
-		log.Printf("[-] [INIT] [Video Dir: %s]", videoOutputDir)
+	videoOutputDir, err = filepath.Abs(videoOutputDir)
+	if err != nil {
+		log.Fatalf("[-] [INIT] [Invalid video output dir %s: %v]", videoOutputDir, err)
 	}
+	err = os.MkdirAll(videoOutputDir, os.FileMode(0644))
+	if err != nil {
+		log.Fatalf("[-] [INIT] [Failed to create video output dir %s: %v]", videoOutputDir, err)
+	}
+	log.Printf("[-] [INIT] [Video Dir: %s]", videoOutputDir)
 	if logOutputDir != "" {
 		logOutputDir, err = filepath.Abs(logOutputDir)
 		if err != nil {

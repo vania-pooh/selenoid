@@ -20,6 +20,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -157,7 +158,7 @@ func create(w http.ResponseWriter, r *http.Request) {
 	}
 	browser.Caps.VideoScreenSize = videoScreenSize
 	finalVideoName := browser.Caps.VideoName
-	if browser.Caps.Video && !disableDocker {
+	if browser.Caps.Video {
 		browser.Caps.VideoName = getTemporaryFileName(videoOutputDir, videoFileExtension)
 	}
 	finalLogName := browser.Caps.LogName
@@ -283,23 +284,13 @@ func create(w http.ResponseWriter, r *http.Request) {
 			Session:   sess,
 		}
 		event.SessionStopped(event.StoppedSession{e})
-		if browser.Caps.Video && !disableDocker {
+		if browser.Caps.Video {
 			oldVideoName := filepath.Join(videoOutputDir, browser.Caps.VideoName)
 			if finalVideoName == "" {
 				finalVideoName = sessionId + videoFileExtension
 			}
 			newVideoName := filepath.Join(videoOutputDir, finalVideoName)
-			err := os.Rename(oldVideoName, newVideoName)
-			if err != nil {
-				log.Printf("[%d] [VIDEO_ERROR] [%s]", requestId, fmt.Sprintf("Failed to rename %s to %s: %v", oldVideoName, newVideoName, err))
-			} else {
-				createdFile := event.CreatedFile{
-					Event: e,
-					Name:  newVideoName,
-					Type:  "video",
-				}
-				event.FileCreated(createdFile)
-			}
+			renameFile(requestId, e, oldVideoName, newVideoName, "video")
 		}
 		if logOutputDir != "" && (saveAllLogs || browser.Caps.Log) {
 			//The following logic will fail if -capture-driver-logs is enabled and a session is requested in driver mode.
@@ -309,17 +300,7 @@ func create(w http.ResponseWriter, r *http.Request) {
 				finalLogName = sessionId + logFileExtension
 			}
 			newLogName := filepath.Join(logOutputDir, finalLogName)
-			err := os.Rename(oldLogName, newLogName)
-			if err != nil {
-				log.Printf("[%d] [LOG_ERROR] [%s]", requestId, fmt.Sprintf("Failed to rename %s to %s: %v", oldLogName, newLogName, err))
-			} else {
-				createdFile := event.CreatedFile{
-					Event: e,
-					Name:  newLogName,
-					Type:  "log",
-				}
-				event.FileCreated(createdFile)
-			}
+			renameFile(requestId, e, oldLogName, newLogName, "log")
 		}
 	}
 	sess.Cancel = cancelAndRenameFiles
@@ -408,6 +389,41 @@ func generateRandomFileName(extension string) string {
 	randBytes := make([]byte, 16)
 	rand.Read(randBytes)
 	return "selenoid" + hex.EncodeToString(randBytes) + extension
+}
+
+func renameFile(requestId uint64, e event.Event, old, new string, eventType string) {
+	if _, err := os.Stat(old); err == nil {
+		err := os.Rename(old, new)
+		if err != nil && runtime.GOOS == "windows" {
+			duration := 2 * time.Second
+			attempt := 0
+			for {
+				err = os.Rename(old, new)
+				if err == nil {
+					break
+				}
+				attempt++
+				if attempt == 5 {
+					break
+				}
+				time.Sleep(duration)
+				duration = 2 * duration
+			}
+		}
+		if err != nil {
+			log.Printf("[%d] [%s_ERROR] [Failed to rename %s to %s: %v]", requestId, strings.ToUpper(eventType), old, new, err)
+			return
+		}
+		createdFile := event.CreatedFile{
+			Event: e,
+			Name:  new,
+			Type:  eventType,
+		}
+		event.FileCreated(createdFile)
+	} else {
+		log.Printf("[%d] [%s] [Temporary file %s not found]", requestId, strings.ToUpper(eventType), old)
+	}
+
 }
 
 func proxy(w http.ResponseWriter, r *http.Request) {
