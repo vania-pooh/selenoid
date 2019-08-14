@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"time"
 
+	ggr "github.com/aerokube/ggr/config"
 	"github.com/aerokube/selenoid/config"
 	"github.com/aerokube/selenoid/session"
 	"github.com/docker/docker/client"
@@ -28,6 +29,7 @@ type Environment struct {
 	LogOutputDir         string
 	SaveAllLogs          bool
 	Privileged           bool
+	GgrHost *ggr.Host
 }
 
 const (

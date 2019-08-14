@@ -170,6 +170,7 @@ func init() {
 		LogOutputDir:         logOutputDir,
 		SaveAllLogs:          saveAllLogs,
 		Privileged:           !disablePrivileged,
+		GgrHost: ggrHost,
 	}
 	if disableDocker {
 		manager = &service.DefaultManager{Environment: &environment, Config: conf}

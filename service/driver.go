@@ -49,8 +49,12 @@ func (d *Driver) StartWithCancel() (*StartedService, error) {
 	log.Printf("[%d] [ALLOCATED_PORT] [%s]", requestId, port)
 	cmdLine = append(cmdLine, fmt.Sprintf("--port=%s", port))
 	cmd := exec.Command(cmdLine[0], cmdLine[1:]...)
+	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, d.Service.Env...)
 	cmd.Env = append(cmd.Env, d.Caps.Env...)
+	if d.GgrHost != nil {
+		cmd.Env = append(cmd.Env, fmt.Sprintf("SESSION_ID_PREFIX=%s", d.GgrHost.Sum()))
+	}
 	if d.CaptureDriverLogs {
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
